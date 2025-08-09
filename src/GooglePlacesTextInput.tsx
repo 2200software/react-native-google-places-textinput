@@ -114,6 +114,7 @@ interface GooglePlacesTextInputProps extends TextInputInheritedProps {
   style?: GooglePlacesTextInputStyles;
   clearElement?: ReactNode;
   hideOnKeyboardDismiss?: boolean;
+  hideOnBlur?: boolean;
   scrollEnabled?: boolean;
   nestedScrollEnabled?: boolean;
   fetchDetails?: boolean;
@@ -159,6 +160,7 @@ const GooglePlacesTextInput = forwardRef<
       style = {},
       clearElement,
       hideOnKeyboardDismiss = false,
+      hideOnBlur = true,
       scrollEnabled = true,
       nestedScrollEnabled = true,
       fetchDetails = false,
@@ -182,7 +184,6 @@ const GooglePlacesTextInput = forwardRef<
     const inputRef = useRef<TextInput>(null);
     const suggestionPressing = useRef<boolean>(false);
     const skipNextFocusFetch = useRef<boolean>(false);
-
     const generateSessionToken = (): string => {
       return generateUUID();
     };
@@ -214,7 +215,7 @@ const GooglePlacesTextInput = forwardRef<
           keyboardDidHideSubscription.remove();
         };
       }
-      return () => {};
+      return () => { };
     }, [hideOnKeyboardDismiss]);
 
     // Expose methods to parent through ref
@@ -247,7 +248,7 @@ const GooglePlacesTextInput = forwardRef<
       if (Platform.OS === 'web' && fetchDetails && !detailsProxyUrl) {
         console.warn(
           'Google Places Details API does not support CORS. ' +
-            'To fetch place details on web, provide a detailsProxyUrl prop that points to a CORS-enabled proxy.'
+          'To fetch place details on web, provide a detailsProxyUrl prop that points to a CORS-enabled proxy.'
         );
       }
     }, [fetchDetails, detailsProxyUrl]);
@@ -454,14 +455,16 @@ const GooglePlacesTextInput = forwardRef<
       event: NativeSyntheticEvent<TextInputFocusEventData>
     ): void => {
       onBlur?.(event);
+      if (hideOnBlur) {
+        setTimeout(() => {
+          if (suggestionPressing.current) {
+            suggestionPressing.current = false;
+          } else {
+            setShowSuggestions(false);
+          }
+        }, 10);
+      }
 
-      setTimeout(() => {
-        if (suggestionPressing.current) {
-          suggestionPressing.current = false;
-        } else {
-          setShowSuggestions(false);
-        }
-      }, 10);
     };
 
     const renderSuggestion = ({ item }: { item: PredictionItem }) => {
@@ -474,9 +477,8 @@ const GooglePlacesTextInput = forwardRef<
       const backgroundColor =
         suggestionsContainerStyle?.backgroundColor || '#efeff1';
 
-      const defaultAccessibilityLabel = `${mainText.text}${
-        secondaryText ? `, ${secondaryText.text}` : ''
-      }`;
+      const defaultAccessibilityLabel = `${mainText.text}${secondaryText ? `, ${secondaryText.text}` : ''
+        }`;
       const accessibilityLabel =
         accessibilityLabels.suggestionItem?.(item.placePrediction) ||
         defaultAccessibilityLabel;
